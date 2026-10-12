@@ -43,6 +43,8 @@ sha256sum --check --ignore-missing SHA256SUMS
 
 Each release also publishes an SPDX software bill of materials (`sezzlee-database-connector.spdx.json`).
 
+The macOS executables are signed with a Developer ID and notarized by Apple. Apple cannot staple the notarization ticket to a single executable, so Gatekeeper checks it online the first time the file runs; on a machine without internet access, verify the attestation instead. The Windows executables are not code-signed yet, so Windows SmartScreen warns on first launch; the attestation and `SHA256SUMS` still prove where the file came from.
+
 ## Pair
 
 1. In Sezzlee, open **Integrations → Database connectors** and choose **Pair a connector**. Copy the single-use pairing code; it expires in 10 minutes.
