@@ -202,19 +202,17 @@ jobs:
             psql() { PGPASSWORD=root "$PGBIN/psql.exe" -U postgres -h 127.0.0.1 "$@"; }
           fi
           psql -v ON_ERROR_STOP=1 -c "CREATE ROLE smoke_reader LOGIN PASSWORD '$PG_PASSWORD'"
-      - name: Start the test API
-        run: |
-          node apps/database-connector/smoke/api.ts --port 8787 --pg-password "$PG_PASSWORD" --log "$SMOKE_LOG" > "$RUNNER_TEMP/api.log" 2>&1 &
-          for attempt in $(seq 1 30); do
-            curl -s -o /dev/null http://127.0.0.1:8787/ && break
-            sleep 1
-          done
-      - name: Pair, keep the secret in the platform store and run the first query
+      - name: Pair, run the first query, then install, start and remove the service
         env:
           CHAT_DATABASE_ALLOW_LOCAL_HTTP: "true"
           NODE_ENV: development
           EXPECTED: ${{ matrix.database && 'connected_read_only' || 'connection_failed' }}
         run: |
+          node apps/database-connector/smoke/api.ts --port 8787 --pg-password "$PG_PASSWORD" --log "$SMOKE_LOG" > "$RUNNER_TEMP/api.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            curl -s -o /dev/null http://127.0.0.1:8787/ && break
+            sleep 1
+          done
           printf '%s\n%s\n' "$PAIRING_CODE" "127.0.0.1:5432" | "$CONNECTOR" pair --api http://127.0.0.1:8787/api | tee "$RUNNER_TEMP/pair.log"
           case "$RUNNER_OS" in
             Linux) grep -q "an owner-only key file" "$RUNNER_TEMP/pair.log" ;;
@@ -223,18 +221,14 @@ jobs:
           esac
           "$CONNECTOR" fingerprint
           "$CONNECTOR" run --concurrency=1 > "$RUNNER_TEMP/run.log" 2>&1 &
+          run_pid=$!
           for attempt in $(seq 1 60); do
             [ -s "$SMOKE_LOG" ] && break
             sleep 1
           done
-          kill %1 || true
+          kill "$run_pid" || true
           cat "$RUNNER_TEMP/run.log"
           node apps/database-connector/smoke/check.ts --log "$SMOKE_LOG" --expect "$EXPECTED"
-      - name: Install, start and remove the service
-        env:
-          CHAT_DATABASE_ALLOW_LOCAL_HTTP: "true"
-          NODE_ENV: development
-        run: |
           case "$RUNNER_OS" in
             Linux)
               printf '%s\n%s\n' "$PAIRING_CODE" "127.0.0.1:5432" \
