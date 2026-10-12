@@ -135,6 +135,7 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
         run: |
+          set -o pipefail
           keychain="$RUNNER_TEMP/signing.keychain-db"
           keychain_password="$(openssl rand -hex 24)"
           security create-keychain -p "$keychain_password" "$keychain"
@@ -147,13 +148,28 @@ jobs:
           security list-keychains -d user -s "$keychain"
           identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
           printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          notary=(--key "$RUNNER_TEMP/notary.p8" --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID")
           for arch in arm64 amd64; do
             binary="release/darwin-$arch/sezzlee-database-connector"
             codesign --force --sign "$identity" --options runtime --timestamp --entitlements entitlements.plist "$binary"
             ditto -c -k --keepParent "$binary" "$RUNNER_TEMP/notarize-$arch.zip"
-            xcrun notarytool submit "$RUNNER_TEMP/notarize-$arch.zip" --key "$RUNNER_TEMP/notary.p8" \
-              --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --wait --output-format json \
-              | jq -e '.status == "Accepted"'
+            submission="$(xcrun notarytool submit "$RUNNER_TEMP/notarize-$arch.zip" "${notary[@]}" --output-format json | jq -r .id)"
+            [ -n "$submission" ] && [ "$submission" != null ]
+            failures=0
+            while :; do
+              if status="$(xcrun notarytool info "$submission" "${notary[@]}" --output-format json | jq -r .status)"; then
+                failures=0
+                [ "$status" = "In Progress" ] || break
+              else
+                failures=$((failures + 1))
+                [ "$failures" -lt 10 ] || exit 1
+              fi
+              sleep 30
+            done
+            if [ "$status" != Accepted ]; then
+              xcrun notarytool log "$submission" "${notary[@]}"
+              exit 1
+            fi
           done
           rm -f "$RUNNER_TEMP/notary.p8"
           security delete-keychain "$keychain"
