@@ -3,6 +3,7 @@ name: release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions: {}
 
@@ -140,9 +141,145 @@ jobs:
           path: release/
           if-no-files-found: error
 
+  smoke:
+    name: smoke test on ${{ matrix.os }}
+    needs: [linux-windows, macos]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: linux-amd64
+            database: true
+          - os: windows-2025
+            target: windows-amd64
+            database: true
+          - os: macos-15
+            target: darwin-arm64
+            database: false
+    permissions:
+      contents: read
+    defaults:
+      run:
+        shell: bash
+    env:
+      PG_PASSWORD: smoke-reader-password
+      SMOKE_LOG: ${{ github.workspace }}/smoke-results.log
+      PAIRING_CODE: smoke-pairing-code-smoke-pairing-code-smoke
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@chat/database-connector
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: executables-*
+          merge-multiple: true
+          path: release
+      - name: Locate the executable
+        env:
+          TARGET: ${{ matrix.target }}
+        run: |
+          binary="$GITHUB_WORKSPACE/release/$TARGET/sezzlee-database-connector"
+          if [ "$TARGET" = windows-amd64 ]; then binary="$binary.exe"; fi
+          chmod 0755 "$binary"
+          echo "CONNECTOR=$binary" >> "$GITHUB_ENV"
+      - name: Start PostgreSQL with a read-only login
+        if: matrix.database
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            sudo systemctl start postgresql.service
+            psql() { sudo -u postgres psql "$@"; }
+          else
+            "$PGBIN/pg_ctl.exe" start -D "$PGDATA" -w
+            psql() { PGPASSWORD=root "$PGBIN/psql.exe" -U postgres -h 127.0.0.1 "$@"; }
+          fi
+          psql -v ON_ERROR_STOP=1 -c "CREATE ROLE smoke_reader LOGIN PASSWORD '$PG_PASSWORD'"
+      - name: Start the test API
+        run: |
+          node apps/database-connector/smoke/api.ts --port 8787 --pg-password "$PG_PASSWORD" --log "$SMOKE_LOG" > "$RUNNER_TEMP/api.log" 2>&1 &
+          for attempt in $(seq 1 30); do
+            curl -s -o /dev/null http://127.0.0.1:8787/ && break
+            sleep 1
+          done
+      - name: Pair, keep the secret in the platform store and run the first query
+        env:
+          CHAT_DATABASE_ALLOW_LOCAL_HTTP: "true"
+          NODE_ENV: development
+          EXPECTED: ${{ matrix.database && 'connected_read_only' || 'connection_failed' }}
+        run: |
+          printf '%s\n%s\n' "$PAIRING_CODE" "127.0.0.1:5432" | "$CONNECTOR" pair --api http://127.0.0.1:8787/api | tee "$RUNNER_TEMP/pair.log"
+          case "$RUNNER_OS" in
+            Linux) grep -q "an owner-only key file" "$RUNNER_TEMP/pair.log" ;;
+            Windows) grep -q "Windows DPAPI" "$RUNNER_TEMP/pair.log" ;;
+            macOS) grep -q "the macOS Keychain" "$RUNNER_TEMP/pair.log" ;;
+          esac
+          "$CONNECTOR" fingerprint
+          "$CONNECTOR" run --concurrency=1 > "$RUNNER_TEMP/run.log" 2>&1 &
+          for attempt in $(seq 1 60); do
+            [ -s "$SMOKE_LOG" ] && break
+            sleep 1
+          done
+          kill %1 || true
+          cat "$RUNNER_TEMP/run.log"
+          node apps/database-connector/smoke/check.ts --log "$SMOKE_LOG" --expect "$EXPECTED"
+      - name: Install, start and remove the service
+        env:
+          CHAT_DATABASE_ALLOW_LOCAL_HTTP: "true"
+          NODE_ENV: development
+        run: |
+          case "$RUNNER_OS" in
+            Linux)
+              printf '%s\n%s\n' "$PAIRING_CODE" "127.0.0.1:5432" \
+                | sudo --preserve-env=CHAT_DATABASE_ALLOW_LOCAL_HTTP,NODE_ENV "$CONNECTOR" service install --api http://127.0.0.1:8787/api
+              test "$(systemctl show -p User --value sezzlee-database-connector.service)" = sezzlee-connector
+              for attempt in $(seq 1 30); do
+                sudo journalctl -u sezzlee-database-connector.service --no-pager | grep -q "secret_store file" && break
+                sleep 1
+              done
+              sudo journalctl -u sezzlee-database-connector.service --no-pager | grep "secret_store file"
+              sudo "$CONNECTOR" service allow list | grep -q "127.0.0.1:5432"
+              sudo "$CONNECTOR" service uninstall
+              ;;
+            Windows)
+              printf '%s\n%s\n' "$PAIRING_CODE" "127.0.0.1:5432" \
+                | "$CONNECTOR" service install --api http://127.0.0.1:8787/api
+              sc.exe qc SezzleeDatabaseConnector | grep -i "NT SERVICE\\SezzleeDatabaseConnector"
+              logs="$PROGRAMDATA/Sezzlee/DatabaseConnector/logs"
+              for attempt in $(seq 1 30); do
+                cat "$logs"/*.log 2>/dev/null | grep -q "secret_store dpapi" && break
+                sleep 1
+              done
+              cat "$logs"/*.log | grep "secret_store dpapi"
+              "$CONNECTOR" service allow list | grep -q "127.0.0.1:5432"
+              "$CONNECTOR" service uninstall
+              ;;
+            macOS)
+              "$CONNECTOR" service install --api http://127.0.0.1:8787/api
+              log="$HOME/Library/Logs/sezzlee-database-connector.log"
+              for attempt in $(seq 1 30); do
+                grep -q "secret_store keychain" "$log" 2>/dev/null && break
+                sleep 1
+              done
+              grep "secret_store keychain" "$log"
+              "$CONNECTOR" service uninstall
+              ;;
+          esac
+      - name: Show the test API log
+        if: always()
+        run: cat "$RUNNER_TEMP/api.log" || true
+
   image:
     name: publish the container image
-    needs: linux-windows
+    if: github.ref_type == 'tag'
+    needs: [linux-windows, smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -185,7 +322,8 @@ jobs:
 
   publish:
     name: publish the release
-    needs: [linux-windows, macos]
+    if: github.ref_type == 'tag'
+    needs: [linux-windows, macos, smoke]
     runs-on: ubuntu-24.04
     permissions:
       contents: write

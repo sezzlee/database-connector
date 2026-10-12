@@ -25,9 +25,21 @@ const { values } = parseArgs({
 const sh = (command, args, cwd = root) =>
   execFileSync(command, args, { cwd, encoding: "utf8" }).trim();
 
-if (sh("git", ["status", "--porcelain"]) !== "")
+const exported = [
+  "apps/database-connector",
+  "packages/contracts",
+  "packages/credential-seal",
+  "packages/database-runtime",
+  "packages/oxlint-config",
+  "vendor/mcp",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "turbo.json",
+];
+if (sh("git", ["status", "--porcelain", "--", ...exported]) !== "")
   throw new Error(
-    "Export from a clean checkout so SOURCE.json names what it holds",
+    "Commit the exported paths first so SOURCE.json names what they hold",
   );
 
 const out = resolve(

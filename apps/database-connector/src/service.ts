@@ -185,6 +185,14 @@ export function useWindowsServiceState(): void {
  * Runs a connector command as the Linux service user, whose files root
  * cannot pass the owner-only checks for.
  */
+const pick = (env: NodeJS.ProcessEnv, names: readonly string[]) =>
+  Object.fromEntries(
+    names.flatMap((name) => {
+      const value = env[name];
+      return value === undefined ? [] : [[name, value]];
+    }),
+  );
+
 export function runAsLinuxService(args: readonly string[]): Promise<void> {
   if (process.getuid?.() !== 0)
     throw new ServiceUsageError("Run this with sudo");
@@ -195,6 +203,7 @@ export function runAsLinuxService(args: readonly string[]): Promise<void> {
       PATH: "/usr/sbin:/usr/bin:/sbin:/bin",
       HOME: SERVICE_HOME,
       SEZZLEE_CONNECTOR_SECRET_STORE: "file",
+      ...pick(process.env, ["CHAT_DATABASE_ALLOW_LOCAL_HTTP", "NODE_ENV"]),
     },
   );
 }
