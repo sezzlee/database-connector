@@ -1,0 +1,19 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": { "inputs": ["$TURBO_DEFAULT$", "!test/**", "!vitest.config.ts"] },
+    "test": { "dependsOn": ["build"] },
+    "dev": {
+      "passThroughEnv": [
+        "SEZZLEE_POSTGRES_SERVER",
+        "SEZZLEE_POSTGRES_PORT",
+        "SEZZLEE_POSTGRES_DATABASE",
+        "SEZZLEE_POSTGRES_USER",
+        "SEZZLEE_POSTGRES_PASSWORD",
+        "SEZZLEE_POSTGRES_SSL_MODE",
+        "SEZZLEE_POSTGRES_CONNECT_TIMEOUT_MS",
+        "SEZZLEE_POSTGRES_QUERY_TIMEOUT_MS"
+      ]
+    }
+  }
+}

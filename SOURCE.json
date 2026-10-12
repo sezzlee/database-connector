@@ -1,0 +1,8 @@
+{
+  "repository": "sezzlee/app",
+  "commit": "d9f99e3e6c4ce41a4185617ec7ed4635355ebd77",
+  "vendor": {
+    "repository": "sezzlee/mcp",
+    "commit": "8d2719ab2dd965d8ccdc7646becc076af3fb75e1"
+  }
+}

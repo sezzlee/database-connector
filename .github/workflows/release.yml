@@ -1,0 +1,234 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions: {}
+
+env:
+  NODE_VERSION: 24.21.0
+  WINSW_VERSION: v2.12.0
+  WINSW_SHA256: 05b82d46ad331cc16bdc00de5c6332c1ef818df8ceefcd49c726553209b3a0da
+
+jobs:
+  linux-windows:
+    name: build Linux and Windows executables
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build check-types lint test
+      - name: Fetch the official Node binaries
+        run: |
+          mkdir -p node
+          cd node
+          base="https://nodejs.org/dist/v${NODE_VERSION}"
+          curl -fsSLO "$base/SHASUMS256.txt"
+          for file in "node-v${NODE_VERSION}-linux-x64.tar.xz" "node-v${NODE_VERSION}-linux-arm64.tar.xz" "node-v${NODE_VERSION}-win-x64.zip"; do
+            curl -fsSLO "$base/$file"
+            grep " $file\$" SHASUMS256.txt | sha256sum --check --strict -
+          done
+          tar -xJf "node-v${NODE_VERSION}-linux-x64.tar.xz" "node-v${NODE_VERSION}-linux-x64/bin/node"
+          tar -xJf "node-v${NODE_VERSION}-linux-arm64.tar.xz" "node-v${NODE_VERSION}-linux-arm64/bin/node"
+          unzip -q "node-v${NODE_VERSION}-win-x64.zip" "node-v${NODE_VERSION}-win-x64/node.exe"
+      - name: Build the executables
+        run: |
+          sea() {
+            node apps/database-connector/scripts/sea.mjs --node "$1" --node-version "v${NODE_VERSION}" --out "$2"
+          }
+          sea "node/node-v${NODE_VERSION}-linux-x64/bin/node" release/linux-amd64/sezzlee-database-connector
+          sea "node/node-v${NODE_VERSION}-linux-arm64/bin/node" release/linux-arm64/sezzlee-database-connector
+          sea "node/node-v${NODE_VERSION}-win-x64/node.exe" release/windows-amd64/sezzlee-database-connector.exe
+          release/linux-amd64/sezzlee-database-connector allow list
+      - name: Add the Windows service wrapper
+        run: |
+          curl -fsSLo release/windows-amd64/sezzlee-database-connector-service.exe \
+            "https://github.com/winsw/winsw/releases/download/${WINSW_VERSION}/WinSW-x64.exe"
+          echo "${WINSW_SHA256}  release/windows-amd64/sezzlee-database-connector-service.exe" | sha256sum --check --strict -
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: executables-linux-windows
+          path: release/
+          if-no-files-found: error
+
+  macos:
+    name: build and sign macOS executables
+    runs-on: macos-15
+    environment: release
+    permissions:
+      contents: read
+    env:
+      SIGNS: ${{ secrets.APPLE_CERTIFICATE_P12 != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm turbo run build --filter=@chat/database-connector
+      - name: Fetch the official Node binaries
+        run: |
+          mkdir -p node
+          cd node
+          base="https://nodejs.org/dist/v${NODE_VERSION}"
+          curl -fsSLO "$base/SHASUMS256.txt"
+          for arch in arm64 x64; do
+            file="node-v${NODE_VERSION}-darwin-$arch.tar.gz"
+            curl -fsSLO "$base/$file"
+            grep " $file\$" SHASUMS256.txt | shasum -a 256 --check --strict -
+            tar -xzf "$file" "node-v${NODE_VERSION}-darwin-$arch/bin/node"
+          done
+      - name: Build the executables
+        run: |
+          node apps/database-connector/scripts/sea.mjs --node "node/node-v${NODE_VERSION}-darwin-arm64/bin/node" \
+            --node-version "v${NODE_VERSION}" --out release/darwin-arm64/sezzlee-database-connector
+          node apps/database-connector/scripts/sea.mjs --node "node/node-v${NODE_VERSION}-darwin-x64/bin/node" \
+            --node-version "v${NODE_VERSION}" --out release/darwin-amd64/sezzlee-database-connector
+      - name: Sign with the Developer ID and notarize
+        if: env.SIGNS == 'true'
+        env:
+          APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER_ID: ${{ secrets.APPLE_API_ISSUER_ID }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          printf '%s' "$APPLE_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm -f "$RUNNER_TEMP/certificate.p12"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain"
+          identity="$(security find-identity -v -p codesigning "$keychain" | awk -F'"' '/Developer ID Application/ { print $2; exit }')"
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/notary.p8"
+          for arch in arm64 amd64; do
+            binary="release/darwin-$arch/sezzlee-database-connector"
+            codesign --force --sign "$identity" --options runtime --timestamp --entitlements entitlements.plist "$binary"
+            ditto -c -k --keepParent "$binary" "$RUNNER_TEMP/notarize-$arch.zip"
+            xcrun notarytool submit "$RUNNER_TEMP/notarize-$arch.zip" --key "$RUNNER_TEMP/notary.p8" \
+              --key-id "$APPLE_API_KEY_ID" --issuer "$APPLE_API_ISSUER_ID" --wait --output-format json \
+              | jq -e '.status == "Accepted"'
+          done
+          rm -f "$RUNNER_TEMP/notary.p8"
+          security delete-keychain "$keychain"
+      - name: Check the signatures and run the arm64 executable
+        run: |
+          codesign --verify --strict --verbose=2 release/darwin-arm64/sezzlee-database-connector
+          codesign --verify --strict --verbose=2 release/darwin-amd64/sezzlee-database-connector
+          release/darwin-arm64/sezzlee-database-connector allow list
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: executables-macos
+          path: release/
+          if-no-files-found: error
+
+  image:
+    name: publish the container image
+    needs: linux-windows
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: executables-linux-windows
+          path: release
+      - run: mkdir -p release/state && install -d -m 0700 release/state/.sezzlee
+      - id: version
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: echo "version=${REF_NAME#v}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          sbom: false
+          tags: ghcr.io/sezzlee/database-connector:${{ steps.version.outputs.version }}
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ghcr.io/sezzlee/database-connector
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
+  publish:
+    name: publish the release
+    needs: [linux-windows, macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: executables-*
+          merge-multiple: true
+          path: release
+      - name: Package the executables
+        env:
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          version="${REF_NAME#v}"
+          chmod 0755 release/*/sezzlee-database-connector*
+          mkdir dist-release
+          for target in linux-amd64 linux-arm64 darwin-arm64 darwin-amd64; do
+            tar -czf "dist-release/sezzlee-database-connector-$version-$target.tar.gz" \
+              -C "release/$target" sezzlee-database-connector -C "$GITHUB_WORKSPACE" LICENSE
+          done
+          cp LICENSE release/windows-amd64/LICENSE
+          (cd release/windows-amd64 && zip -q "$GITHUB_WORKSPACE/dist-release/sezzlee-database-connector-$version-windows-amd64.zip" \
+            sezzlee-database-connector.exe sezzlee-database-connector-service.exe LICENSE)
+      - uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist-release/sezzlee-database-connector.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - run: (cd dist-release && sha256sum -- * > SHA256SUMS)
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: |
+            dist-release/*
+            release/*/sezzlee-database-connector*
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REF_NAME: ${{ github.ref_name }}
+        run: gh release create "$REF_NAME" dist-release/* --verify-tag --title "$REF_NAME" --generate-notes

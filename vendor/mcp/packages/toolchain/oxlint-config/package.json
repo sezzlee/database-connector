@@ -1,0 +1,17 @@
+{
+  "name": "@sezzlee/oxlint-config",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./base": "./base.ts",
+    "./casing": "./casing.ts",
+    "./react": "./react.ts"
+  },
+  "dependencies": {
+    "eslint-plugin-turbo": "2.10.11"
+  },
+  "devDependencies": {
+    "oxlint": "1.85.0"
+  }
+}

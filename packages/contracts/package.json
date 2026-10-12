@@ -1,0 +1,32 @@
+{
+  "name": "@chat/contracts",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "lint": "oxlint --deny-warnings",
+    "check-types": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "zod": "^4.5.4"
+  },
+  "dependencies": {
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@chat/oxlint-config": "workspace:*",
+    "@sezzlee/oxlint-config": "link:../../vendor/mcp/packages/toolchain/oxlint-config",
+    "@sezzlee/typescript-config": "link:../../vendor/mcp/packages/toolchain/typescript-config",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2"
+  }
+}

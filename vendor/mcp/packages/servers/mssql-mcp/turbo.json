@@ -1,0 +1,41 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "inputs": ["$TURBO_DEFAULT$", "!test/**", "!vitest.config.ts"]
+    },
+    "test": {
+      "dependsOn": ["build"],
+      "passThroughEnv": [
+        "SEZZLEE_MSSQL_SERVER",
+        "SEZZLEE_MSSQL_PORT",
+        "SEZZLEE_MSSQL_DATABASE",
+        "SEZZLEE_MSSQL_USER",
+        "SEZZLEE_MSSQL_PASSWORD",
+        "SEZZLEE_MSSQL_ENCRYPT",
+        "SEZZLEE_MSSQL_TRUST_SERVER_CERTIFICATE",
+        "SEZZLEE_MSSQL_CONNECT_TIMEOUT_MS",
+        "SEZZLEE_MSSQL_QUERY_TIMEOUT_MS",
+        "SEZZLEE_MSSQL_LIVE"
+      ]
+    },
+    "test:coverage": {
+      "dependsOn": ["build"],
+      "outputs": ["coverage/**"]
+    },
+    "dev": {
+      "passThroughEnv": [
+        "SEZZLEE_MSSQL_SERVER",
+        "SEZZLEE_MSSQL_PORT",
+        "SEZZLEE_MSSQL_DATABASE",
+        "SEZZLEE_MSSQL_USER",
+        "SEZZLEE_MSSQL_PASSWORD",
+        "SEZZLEE_MSSQL_ENCRYPT",
+        "SEZZLEE_MSSQL_TRUST_SERVER_CERTIFICATE",
+        "SEZZLEE_MSSQL_CONNECT_TIMEOUT_MS",
+        "SEZZLEE_MSSQL_QUERY_TIMEOUT_MS"
+      ]
+    }
+  }
+}

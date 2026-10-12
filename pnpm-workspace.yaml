@@ -1,0 +1,11 @@
+packages:
+- apps/*
+- packages/*
+- vendor/mcp/packages/cores/mcp-core
+- vendor/mcp/packages/cores/db-core
+- vendor/mcp/packages/servers/mssql-mcp
+- vendor/mcp/packages/servers/postgres-mcp
+- vendor/mcp/packages/toolchain/oxlint-config
+- vendor/mcp/packages/toolchain/typescript-config
+allowBuilds:
+  esbuild: true

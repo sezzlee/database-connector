@@ -1,0 +1,24 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": { "inputs": ["$TURBO_DEFAULT$", "!.env*"] },
+    "start": {
+      "cache": false,
+      "persistent": true,
+      "passThroughEnv": [
+        "CHAT_DATABASE_ALLOW_LOCAL_HTTP",
+        "NODE_ENV",
+        "ProgramData",
+        "ProgramFiles",
+        "SEZZLEE_CONNECTOR_HOME",
+        "SEZZLEE_CONNECTOR_SECRET_STORE",
+        "SEZZLEE_CONNECTOR_SERVICE",
+        "SystemRoot",
+        "USERNAME",
+        "USERDOMAIN"
+      ]
+    },
+    "sea": { "dependsOn": ["build"], "cache": false },
+    "test": { "env": ["CHAT_CONNECTOR_EXECUTABLE"] }
+  }
+}

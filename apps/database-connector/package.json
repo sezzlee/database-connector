@@ -1,0 +1,37 @@
+{
+  "name": "@chat/database-connector",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "sezzlee-database-connector": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "check-types": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "lint": "oxlint --deny-warnings",
+    "start": "node dist/cli.js run",
+    "sea": "node scripts/sea.mjs"
+  },
+  "dependencies": {
+    "@chat/contracts": "workspace:*",
+    "@chat/credential-seal": "workspace:*",
+    "@chat/database-runtime": "workspace:*",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@chat/oxlint-config": "workspace:*",
+    "@sezzlee/oxlint-config": "workspace:*",
+    "@sezzlee/typescript-config": "workspace:*",
+    "@types/node": "^24.3.0",
+    "esbuild": "0.28.2",
+    "oxlint": "1.85.0",
+    "postject": "1.0.0-alpha.6",
+    "typescript": "7.0.2",
+    "vitest": "^3.2.4"
+  }
+}

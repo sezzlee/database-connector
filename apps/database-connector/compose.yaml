@@ -1,0 +1,13 @@
+services:
+  connector:
+    image: sezzlee-database-connector:${CONNECTOR_TAG:?Set CONNECTOR_TAG to the image tag to run}
+    command: ["run"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - state:/home/nonroot/.sezzlee
+
+volumes:
+  state:

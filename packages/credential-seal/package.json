@@ -1,0 +1,30 @@
+{
+  "name": "@chat/credential-seal",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    "./*": {
+      "types": "./src/*.ts",
+      "default": "./dist/*.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch --preserveWatchOutput",
+    "lint": "oxlint --deny-warnings",
+    "check-types": "tsc --noEmit && tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "keygen": "node scripts/keygen.mjs"
+  },
+  "devDependencies": {
+    "@chat/oxlint-config": "workspace:*",
+    "@sezzlee/oxlint-config": "link:../../vendor/mcp/packages/toolchain/oxlint-config",
+    "@sezzlee/typescript-config": "link:../../vendor/mcp/packages/toolchain/typescript-config",
+    "@types/node": "^24.3.0",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2",
+    "vitest": "^3.2.4"
+  }
+}

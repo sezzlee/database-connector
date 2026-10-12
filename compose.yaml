@@ -1,0 +1,13 @@
+services:
+  connector:
+    image: ghcr.io/sezzlee/database-connector:${CONNECTOR_VERSION:?Set CONNECTOR_VERSION to a released version, for example 1.0.0}
+    command: ["run"]
+    restart: unless-stopped
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - state:/home/nonroot/.sezzlee
+
+volumes:
+  state:

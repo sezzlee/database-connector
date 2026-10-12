@@ -1,0 +1,85 @@
+import {
+  asciiLower,
+  type ColumnKind,
+  type NativeColumn,
+  type TypeFacts,
+} from "@sezzlee/db-core";
+
+const kinds: Readonly<Record<string, ColumnKind>> = {
+  bool: "boolean",
+  boolean: "boolean",
+  int2: "integer",
+  smallint: "integer",
+  int4: "integer",
+  integer: "integer",
+  int8: "bigint",
+  bigint: "bigint",
+  numeric: "decimal",
+  decimal: "decimal",
+  money: "decimal",
+  float4: "float",
+  real: "float",
+  float8: "float",
+  "double precision": "float",
+  text: "text",
+  varchar: "text",
+  "character varying": "text",
+  bpchar: "text",
+  character: "text",
+  name: "text",
+  citext: "text",
+  bytea: "binary",
+  uuid: "uuid",
+  json: "json",
+  jsonb: "json",
+  xml: "xml",
+  date: "date",
+  time: "time",
+  "time without time zone": "time",
+  timetz: "time",
+  "time with time zone": "time",
+  timestamp: "timestamp",
+  "timestamp without time zone": "timestamp",
+  timestamptz: "timestamptz",
+  "timestamp with time zone": "timestamptz",
+  oid: "integer",
+};
+export function describeType(native: NativeColumn): TypeFacts {
+  const name = asciiLower(native.typeName);
+  return {
+    kind: kinds[name] ?? "unknown",
+    ...(native.maxLength === undefined ? {} : { maxLength: native.maxLength }),
+    ...(native.precision === undefined
+      ? name === "int8" || name === "bigint"
+        ? { precision: 19 }
+        : {}
+      : { precision: native.precision }),
+    ...(native.scale === undefined ? {} : { scale: native.scale }),
+  };
+}
+export const nativeTypes: Readonly<Record<number, string>> = {
+  16: "bool",
+  17: "bytea",
+  18: "char",
+  19: "name",
+  20: "int8",
+  21: "int2",
+  23: "int4",
+  25: "text",
+  26: "oid",
+  114: "json",
+  142: "xml",
+  700: "float4",
+  701: "float8",
+  790: "money",
+  1042: "bpchar",
+  1043: "varchar",
+  1082: "date",
+  1083: "time",
+  1114: "timestamp",
+  1184: "timestamptz",
+  1266: "timetz",
+  1700: "numeric",
+  2950: "uuid",
+  3802: "jsonb",
+};

@@ -1,0 +1,76 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sezzlee/mssql",
+  "title": "Sezzlee SQL Server",
+  "description": "Explore and query Microsoft SQL Server read-only: catalogue search, schema and bounded queries.",
+  "websiteUrl": "https://docs.sezzlee.app/docs/mssql-mcp/quickstart",
+  "repository": {
+    "url": "https://github.com/sezzlee/mcp",
+    "source": "github",
+    "subfolder": "packages/servers/mssql-mcp"
+  },
+  "version": "0.2.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@sezzlee/mssql-mcp",
+      "version": "0.2.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SEZZLEE_MSSQL_SERVER",
+          "description": "Database host",
+          "isRequired": true
+        },
+        {
+          "name": "SEZZLEE_MSSQL_PORT",
+          "description": "Database port",
+          "format": "number",
+          "default": "1433"
+        },
+        {
+          "name": "SEZZLEE_MSSQL_DATABASE",
+          "description": "Database name",
+          "isRequired": true
+        },
+        {
+          "name": "SEZZLEE_MSSQL_USER",
+          "description": "Login of a read-only principal",
+          "isRequired": true
+        },
+        {
+          "name": "SEZZLEE_MSSQL_PASSWORD",
+          "description": "Password of that login",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "SEZZLEE_MSSQL_ENCRYPT",
+          "description": "Encrypt the connection",
+          "format": "boolean",
+          "default": "true"
+        },
+        {
+          "name": "SEZZLEE_MSSQL_TRUST_SERVER_CERTIFICATE",
+          "description": "Accept an unverified server certificate",
+          "format": "boolean",
+          "default": "false"
+        },
+        {
+          "name": "SEZZLEE_MSSQL_CONNECT_TIMEOUT_MS",
+          "description": "Connect timeout in milliseconds",
+          "format": "number",
+          "default": "15000"
+        },
+        {
+          "name": "SEZZLEE_MSSQL_QUERY_TIMEOUT_MS",
+          "description": "Query timeout in milliseconds",
+          "format": "number",
+          "default": "30000"
+        }
+      ]
+    }
+  ]
+}

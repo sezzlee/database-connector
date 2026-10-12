@@ -1,0 +1,74 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sezzlee/postgres",
+  "title": "Sezzlee PostgreSQL",
+  "description": "Explore and query PostgreSQL read-only: catalogue search, schema introspection and bounded queries.",
+  "websiteUrl": "https://docs.sezzlee.app/docs/postgres-mcp/quickstart",
+  "repository": {
+    "url": "https://github.com/sezzlee/mcp",
+    "source": "github",
+    "subfolder": "packages/servers/postgres-mcp"
+  },
+  "version": "0.2.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@sezzlee/postgres-mcp",
+      "version": "0.2.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "SEZZLEE_POSTGRES_SERVER",
+          "description": "Database host",
+          "isRequired": true
+        },
+        {
+          "name": "SEZZLEE_POSTGRES_PORT",
+          "description": "Database port",
+          "format": "number",
+          "default": "5432"
+        },
+        {
+          "name": "SEZZLEE_POSTGRES_DATABASE",
+          "description": "Database name",
+          "isRequired": true
+        },
+        {
+          "name": "SEZZLEE_POSTGRES_USER",
+          "description": "Login of a read-only principal",
+          "isRequired": true
+        },
+        {
+          "name": "SEZZLEE_POSTGRES_PASSWORD",
+          "description": "Password of that login",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "SEZZLEE_POSTGRES_SSL_MODE",
+          "description": "TLS mode",
+          "choices": [
+            "disable",
+            "require",
+            "verify-full"
+          ],
+          "default": "verify-full"
+        },
+        {
+          "name": "SEZZLEE_POSTGRES_CONNECT_TIMEOUT_MS",
+          "description": "Connect timeout in milliseconds",
+          "format": "number",
+          "default": "30000"
+        },
+        {
+          "name": "SEZZLEE_POSTGRES_QUERY_TIMEOUT_MS",
+          "description": "Query timeout in milliseconds",
+          "format": "number",
+          "default": "30000"
+        }
+      ]
+    }
+  ]
+}

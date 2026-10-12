@@ -1,0 +1,78 @@
+{
+  "name": "@sezzlee/mssql-mcp",
+  "version": "0.2.1",
+  "mcpName": "io.github.sezzlee/mssql",
+  "description": "Read-only MCP server that lets AI agents explore and query Microsoft SQL Server: catalogue search, schema introspection and read-only queries.",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "model-context-protocol",
+    "ai-agents",
+    "llm",
+    "claude",
+    "sezzlee",
+    "mssql",
+    "sql-server",
+    "sql",
+    "database",
+    "schema",
+    "text-to-sql",
+    "read-only"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sezzlee/mcp.git",
+    "directory": "packages/servers/mssql-mcp"
+  },
+  "homepage": "https://github.com/sezzlee/mcp/tree/main/packages/servers/mssql-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/sezzlee/mcp/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "sezzlee-mssql": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@sezzlee/db-core": "workspace:^",
+    "mssql": "11.0.2",
+    "zod": "^4.5.4"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "dev": "tsc --watch",
+    "lint": "oxlint --deny-warnings",
+    "check-types": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@sezzlee/oxlint-config": "workspace:*",
+    "@sezzlee/typescript-config": "workspace:*",
+    "@types/mssql": "^9.1.5",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "3.2.7",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2",
+    "vitest": "^3.2.4"
+  }
+}

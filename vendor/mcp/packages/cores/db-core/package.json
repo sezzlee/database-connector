@@ -1,0 +1,71 @@
+{
+  "name": "@sezzlee/db-core",
+  "version": "0.2.0",
+  "description": "Shared machinery for read-only, dialect-agnostic, database-backed MCP servers.",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "mcp-framework",
+    "sezzlee",
+    "mcp-server",
+    "database",
+    "sql",
+    "connection-pool",
+    "read-only"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sezzlee/mcp.git",
+    "directory": "packages/cores/db-core"
+  },
+  "homepage": "https://github.com/sezzlee/mcp/tree/main/packages/cores/db-core#readme",
+  "bugs": {
+    "url": "https://github.com/sezzlee/mcp/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@sezzlee/mcp-core": "workspace:^"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "dev": "tsc --watch",
+    "lint": "oxlint --deny-warnings",
+    "check-types": "tsc -p tsconfig.test.json",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "prepack": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc"
+  },
+  "peerDependencies": {
+    "@modelcontextprotocol/server": ">=2.0.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@sezzlee/oxlint-config": "workspace:*",
+    "@sezzlee/typescript-config": "workspace:*",
+    "@types/node": "^24.3.0",
+    "@vitest/coverage-v8": "3.2.7",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2",
+    "vitest": "^3.2.4"
+  }
+}

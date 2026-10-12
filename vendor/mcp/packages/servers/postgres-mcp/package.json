@@ -1,0 +1,57 @@
+{
+  "name": "@sezzlee/postgres-mcp",
+  "version": "0.2.1",
+  "mcpName": "io.github.sezzlee/postgres",
+  "description": "Read-only PostgreSQL MCP server with catalog search, schema introspection and bounded queries.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sezzlee/mcp.git",
+    "directory": "packages/servers/postgres-mcp"
+  },
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "sezzlee-postgres": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "@sezzlee/db-core": "workspace:^",
+    "pg": "8.23.1",
+    "pg-cursor": "2.22.1",
+    "zod": "^4.5.4"
+  },
+  "scripts": {
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc",
+    "dev": "tsc --watch",
+    "lint": "oxlint --deny-warnings",
+    "check-types": "tsc -p tsconfig.test.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@sezzlee/oxlint-config": "workspace:*",
+    "@sezzlee/typescript-config": "workspace:*",
+    "@types/pg": "^8.15.6",
+    "@types/pg-cursor": "^2.7.2",
+    "@types/node": "^24.3.0",
+    "oxlint": "1.85.0",
+    "typescript": "7.0.2",
+    "vitest": "^3.2.4"
+  }
+}
