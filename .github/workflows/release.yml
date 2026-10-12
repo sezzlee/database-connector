@@ -64,14 +64,11 @@ jobs:
           if-no-files-found: error
 
   macos:
-    name: build and sign macOS executables
+    name: build macOS executables
     runs-on: macos-15
     timeout-minutes: 45
-    environment: release
     permissions:
       contents: read
-    env:
-      SIGNS: ${{ secrets.APPLE_CERTIFICATE_P12 != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -101,9 +98,36 @@ jobs:
             --node-version "v${NODE_VERSION}" --out release/darwin-arm64/sezzlee-database-connector
           node apps/database-connector/scripts/sea.mjs --node "node/node-v${NODE_VERSION}-darwin-x64/bin/node" \
             --node-version "v${NODE_VERSION}" --out release/darwin-amd64/sezzlee-database-connector
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: unsigned-macos
+          path: release/
+          if-no-files-found: error
+
+  # Guard: the Apple identity and notary key reach only this job, which installs no packages
+  # and runs no code from dependencies, so nothing else on the runner can use the keychain.
+  macos-sign:
+    name: sign and notarize macOS executables
+    needs: macos
+    runs-on: macos-15
+    timeout-minutes: 100
+    environment: release
+    permissions:
+      contents: read
+    env:
+      SIGNS: ${{ secrets.APPLE_CERTIFICATE_P12 != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: unsigned-macos
+          path: release
+      - run: chmod 0755 release/*/sezzlee-database-connector
       - name: Sign with the Developer ID and notarize
         if: env.SIGNS == 'true'
-        timeout-minutes: 30
+        timeout-minutes: 90
         env:
           APPLE_CERTIFICATE_P12: ${{ secrets.APPLE_CERTIFICATE_P12 }}
           APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
@@ -117,7 +141,7 @@ jobs:
           security set-keychain-settings -lut 3600 "$keychain"
           security unlock-keychain -p "$keychain_password" "$keychain"
           printf '%s' "$APPLE_CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
-          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12
+          security import "$RUNNER_TEMP/certificate.p12" -k "$keychain" -P "$APPLE_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
           rm -f "$RUNNER_TEMP/certificate.p12"
           security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$keychain_password" "$keychain" > /dev/null
           security list-keychains -d user -s "$keychain"
@@ -146,7 +170,7 @@ jobs:
 
   smoke:
     name: smoke test on ${{ matrix.os }}
-    needs: [linux-windows, macos]
+    needs: [linux-windows, macos-sign]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -322,7 +346,7 @@ jobs:
   publish:
     name: publish the release
     if: github.ref_type == 'tag'
-    needs: [linux-windows, macos, smoke]
+    needs: [linux-windows, macos-sign, smoke]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
