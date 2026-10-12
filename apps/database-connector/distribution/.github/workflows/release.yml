@@ -252,7 +252,7 @@ jobs:
               printf '%s\n%s\n' "$PAIRING_CODE" "127.0.0.1:5432" \
                 | "$CONNECTOR" service install --api http://127.0.0.1:8787/api
               sc.exe qc SezzleeDatabaseConnector | grep -iF 'NT SERVICE\SezzleeDatabaseConnector'
-              logs="$PROGRAMDATA/Sezzlee/DatabaseConnector/logs"
+              logs="$(cygpath -u "${ProgramData:-C:/ProgramData}")/Sezzlee/DatabaseConnector/logs"
               for attempt in $(seq 1 30); do
                 cat "$logs"/*.log 2>/dev/null | grep -q "secret_store dpapi" && break
                 sleep 1
